@@ -1,0 +1,11 @@
+{
+  "name": "CC",
+  "baseHealth": 600.0,
+  "baseDamage": 10.0,
+  "baseProtection": 10.0,
+  "customAttributes": {
+    "enderSpellPower": 5.0,
+    "staminar": 1000.0,
+    "baseStaminaRegen": 10000.0
+  }
+}

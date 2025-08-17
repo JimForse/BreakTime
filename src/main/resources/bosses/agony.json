@@ -1,0 +1,10 @@
+{
+  "name": "Agony",
+  "baseHealth": 150.0,
+  "baseDamage": 5.0,
+  "baseProtection": 0.0,
+  "baseAttackSpeed": 0.5,
+  "customAttributes": {
+    "baseStaminaRegen": 100.0
+  }
+}

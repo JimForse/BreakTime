@@ -1,0 +1,8 @@
+{
+  "name": "Torment",
+  "baseHealth": 700.0,
+  "baseDamage": 5.0,
+  "baseStaminaRegen": 10000.0,
+  "baseProtection": 5.0,
+  "customAttributes": {}
+}

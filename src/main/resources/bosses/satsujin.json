@@ -1,0 +1,11 @@
+{
+  "name": "Satsujin",
+  "baseHealth": 200,
+  "baseDamage": 10,
+  "baseAttackSpeed": 6,
+  "baseProtection": 40,
+  "customAttributes": {
+    "staminar": 1000000,
+    "baseStaminaRegen": 1000000
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Ruine",
+  "baseHealth": 50.0,
+  "baseDamage": 2.0,
+  "baseProtection": 30.0,
+  "baseAttackSpeed": 6.0,
+  "customAttributes": {}
+}

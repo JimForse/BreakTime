@@ -1,0 +1,9 @@
+{
+  "name": "Last_Knight",
+  "baseHealth": 200,
+  "baseDamage": 10,
+  "baseProtection": 400,
+  "customAttributes": {
+    "armorNegation": 400
+  }
+}
