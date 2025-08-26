@@ -9,8 +9,8 @@
     "baseStaminaRegen": 1000000
   },
   "customBossbarAttributes": {
-    "name": "",
-    "color": "",
+    "name": "Последний самурай - Хранитель демона",
+    "color": "YELLOW",
     "overlay": "PROGRESS"
   }
 }

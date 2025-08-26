@@ -9,8 +9,8 @@
     "baseStaminaRegen": 10000.0
   },
   "customBossbarAttributes": {
-    "name": "",
-    "color": "",
+    "name": "Син - Кристал номер 2",
+    "color": "PURPLE",
     "overlay": "PROGRESS"
   }
 }

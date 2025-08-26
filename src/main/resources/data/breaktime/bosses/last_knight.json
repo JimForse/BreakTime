@@ -7,8 +7,8 @@
     "armorNegation": 400
   },
   "customBossbarAttributes": {
-    "name": "",
-    "color": "",
+    "name": "Закованный рыцарь - Страж Мемории",
+    "color": "RED",
     "overlay": "PROGRESS"
   }
 }

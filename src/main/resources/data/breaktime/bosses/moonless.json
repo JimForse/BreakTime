@@ -12,8 +12,8 @@
     "castTimeReduction": 1000000
   },
   "customBossbarAttributes": {
-    "name": "",
-    "color": "",
+    "name": "Арнис - Хранитель времени",
+    "color": "WHITE",
     "overlay": "PROGRESS"
   }
 }

@@ -6,8 +6,8 @@
   "baseProtection": 5.0,
   "customAttributes": {},
   "customBossbarAttributes": {
-    "name": "",
-    "color": "",
+    "name": "Торнер - Охотник за головами",
+    "color": "GREEN",
     "overlay": "PROGRESS"
   }
 }
