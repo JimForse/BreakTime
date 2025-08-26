@@ -13,9 +13,11 @@ public enum BossType {
     MOONLESS("moonless");
 
     private final String id;
+    private final JsonObject attributes;
 
     BossType(String id) {
         this.id = id;
+        this.attributes = BossTypeData.getBossAttributes(id);
     }
 
     public String getId() {
@@ -64,6 +66,10 @@ public enum BossType {
     public JsonObject getCustomAttributes() {
         JsonObject attributes = BossTypeData.getBossAttributes(id);
         return attributes != null && attributes.has("customAttributes") ? attributes.get("customAttributes").getAsJsonObject() : new JsonObject();
+    }
+
+    public JsonObject getCustomBossbarAttributes() {
+        return attributes != null && attributes.has("customBossbarAttributes") ? attributes.get("customBossbarAttributes").getAsJsonObject() : new JsonObject();
     }
 
     public double getScaledHealth(int playerCount) {

@@ -5,5 +5,10 @@
   "baseProtection": 400,
   "customAttributes": {
     "armorNegation": 400
+  },
+  "customBossbarAttributes": {
+    "name": "",
+    "color": "",
+    "overlay": "PROGRESS"
   }
 }

@@ -51,8 +51,8 @@ public class BreakTimeMod {
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
 
-    public static final RegistryObject<Block> EXAMPLE_BLOCK = BLOCKS.register("example_block", () -> new Block(BlockBehaviour.Properties.of(Material.STONE)));
-    public static final RegistryObject<Item> EXAMPLE_BLOCK_ITEM = ITEMS.register("example_block", () -> new BlockItem(EXAMPLE_BLOCK.get(), new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
+//    public static final RegistryObject<Block> EXAMPLE_BLOCK = BLOCKS.register("example_block", () -> new Block(BlockBehaviour.Properties.of(Material.STONE)));
+//    public static final RegistryObject<Item> EXAMPLE_BLOCK_ITEM = ITEMS.register("example_block", () -> new BlockItem(EXAMPLE_BLOCK.get(), new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
 
     private static final Map<String, TimerData> timers = new HashMap<>();
     private static final Map<String, BlockPos> deathLocations = new HashMap<>(); // Используем String для ника
@@ -68,7 +68,7 @@ public class BreakTimeMod {
         MinecraftForge.EVENT_BUS.register(this);
 
         context.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
-        FMLJavaModLoadingContext.get().getModEventBus().addListener(this::clientSetup);
+        context.getModEventBus().addListener(this::clientSetup);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -87,32 +87,44 @@ public class BreakTimeMod {
                 break;
             }
         }
-        level.getGameRules().getRule(GameRules.RULE_KEEPINVENTORY).set(false, level.getServer());
         if (boss instanceof ServerPlayer bossPlayer) {
             bossPlayer.removeTag("boss_active");
             BossManager.removeBossBar(bossPlayer);
 
-            // Найти убийцу
             ServerPlayer killer = null;
             DamageSource lastDamage = bossPlayer.getLastDamageSource();
             if (lastDamage != null && lastDamage.getEntity() instanceof ServerPlayer damageSourcePlayer) {
                 killer = damageSourcePlayer;
+                BreakTimeMod.LOGGER.info("Boss killer found: {}", killer.getName().getString());
+            } else {
+                BreakTimeMod.LOGGER.warn("No killer found for boss {}! Last damage: {}", bossPlayer.getName().getString(), lastDamage != null ? lastDamage.getMsgId() : "null");
             }
 
-            // Дроп первого предмета убийце
-            if (killer != null) {
-                ItemStack drop = bossPlayer.getInventory().getItem(0).copy();
-                if (!drop.isEmpty()) {
+            ItemStack drop = bossPlayer.getInventory().getItem(0).copy();
+            if (!drop.isEmpty()) {
+                if (killer != null) {
                     killer.addItem(drop);
                     killer.sendSystemMessage(Component.literal("Получен предмет от босса: " + drop.getHoverName().getString()));
-                    BreakTimeMod.LOGGER.info("Dropped {} to killer {}", drop.getHoverName().getString(), killer.getName().getString());
+                    BreakTimeMod.LOGGER.info("Dropped {} to killer {}.", drop.getHoverName().getString(), killer.getName().getString());
+                } else {
+                    List<ServerPlayer> participants = level.getPlayers(p -> p.getTags().contains("participant"));
+                    if (!participants.isEmpty()) {
+                        ServerPlayer randomParticipant = participants.get(new Random().nextInt(participants.size()));
+                        randomParticipant.addItem(drop);
+                        randomParticipant.sendSystemMessage(Component.literal("Получен предмет от босса: " + drop.getHoverName().getString()));
+                        BreakTimeMod.LOGGER.info("Dropped {} to random participant {}.", drop.getHoverName().getString(), randomParticipant.getName().getString());
+                    }
                 }
+            } else {
+                BreakTimeMod.LOGGER.info("Boss slot 0 empty, no drop.");
             }
         }
+
         for (ServerPlayer player : level.getPlayers(p -> p.getTags().contains("participant"))) {
             player.sendSystemMessage(Component.literal("§aПобеда! Босс был повержен."));
-            player.getTags().remove("participant");
         }
+        level.getGameRules().getRule(GameRules.RULE_KEEPINVENTORY).set(false, level.getServer());
+        removeTimer(timer.getName());
     }
 
     private void onParticipantsDefeated(ServerLevel level, TimerData timer, Entity boss) {
@@ -222,7 +234,6 @@ public class BreakTimeMod {
                         timer.setEventActive(true);
                         level.getGameRules().getRule(GameRules.RULE_KEEPINVENTORY).set(true, level.getServer());
                         BreakTimeMod.LOGGER.info("KeepInventory enabled for boss fight.");
-                        BossManager.createBossBar(bossPlayer, timer.getBossType());
                         bossPlayer.sendSystemMessage(Component.literal("Ты стал боссом " + timer.getBossType().getId() + "!"));
                         for (ServerPlayer participant : participants) {
                             participant.addTag("participant");
@@ -242,7 +253,7 @@ public class BreakTimeMod {
             } else {
                 List<ServerPlayer> participants = timerLevel.getPlayers(p -> p.getTags().contains("participant"));
                 Entity boss = null;
-                for (Entity entity : timerLevel.getEntities().getAll()) { // Поиск boss
+                for (Entity entity: timerLevel.getEntities().getAll()) { // Поиск boss
                     if (entity.getTags().contains(timer.getBossType().getId())) {
                         boss = entity;
                         break; // Нашли, выходим из цикла
@@ -250,8 +261,11 @@ public class BreakTimeMod {
                 }
 
                 // Теперь, вне цикла, обновляем бар если boss найден и это игрок
-                if (boss != null && boss instanceof ServerPlayer bossPlayer)
+                if (boss != null && boss instanceof ServerPlayer bossPlayer) {
                     BossManager.updateBossBar(bossPlayer);
+                    BossManager.applyBossAttributes(bossPlayer, timer.getBossType(), participants.size(), true);
+                    BossManager.updateBossBar(bossPlayer);
+                }
 
                 if (boss == null) {
                     onBossDefeated(timerLevel, timer);
@@ -272,6 +286,7 @@ public class BreakTimeMod {
         // Наносим урон нарушителям
         for (ServerPlayer player : level.getPlayers(p -> true)) {
             if (player.getTags().contains("admin") || player.getTags().contains("participant")) continue;
+            if (player.getTags().contains("boss_active")) continue;
             ServerPlayer bossPlayer = level.getPlayers(p -> p.getTags().contains("boss_active") &&
                     p.getTags().stream().anyMatch(tag -> {
                         for (BossType bossType : BossType.values()) {
@@ -334,25 +349,21 @@ public class BreakTimeMod {
 
     @SubscribeEvent
     public void onPlayerDeath(LivingDeathEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player && player.getTags().contains("participant")) {
-            deathLocations.put(player.getGameProfile().getName(), player.blockPosition());
-            PacketHandler.sendToPlayer(new DeathCooldownPacket(7), player);
+        if (event.getEntity() instanceof ServerPlayer deadPlayer && deadPlayer.getTags().contains("participant")) {
+            deathLocations.put(deadPlayer.getGameProfile().getName(), deadPlayer.blockPosition());
+            PacketHandler.sendToPlayer(new DeathCooldownPacket(7), deadPlayer);
+            BreakTimeMod.LOGGER.info("Sent cooldown packet to participant {} on death.", deadPlayer.getName().getString());
 
-            String victimName = player.getGameProfile().getName();
+            String victimName = deadPlayer.getGameProfile().getName();
             DamageSource source = event.getSource();
-            String killerName = "???";
-
-            if (source.getEntity() instanceof ServerPlayer killer && !killer.getTags().contains("admin")) {
-                killerName = "???";
-            } else if (source.getEntity() != null) {
-                killerName = source.getEntity().getDisplayName().getString();
-            }
+            String killerName = source != null && source.getEntity() != null
+                    ? source.getEntity().getDisplayName().getString()
+                    : "неизвестной причиной";
 
             Component deathMessage = Component.literal(victimName + " был убит " + killerName);
-            player.getServer().getPlayerList().getPlayers().forEach(p ->
+            deadPlayer.getServer().getPlayerList().getPlayers().forEach(p ->
                     p.sendSystemMessage(deathMessage)
             );
-            BreakTimeMod.LOGGER.info("Player {} died as participant. Cooldown packet sent.", victimName);
         }
     }
 }

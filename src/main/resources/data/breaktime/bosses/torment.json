@@ -4,5 +4,10 @@
   "baseDamage": 5.0,
   "baseStaminaRegen": 10000.0,
   "baseProtection": 5.0,
-  "customAttributes": {}
+  "customAttributes": {},
+  "customBossbarAttributes": {
+    "name": "",
+    "color": "",
+    "overlay": "PROGRESS"
+  }
 }

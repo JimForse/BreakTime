@@ -7,5 +7,6 @@
     "manaRegen": 100000,
     "bloodSpellPower": 5,
     "cooldownReduction": 10
-  }
+  },
+  "customBossbarAttributes": {}
 }

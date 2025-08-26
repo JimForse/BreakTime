@@ -6,5 +6,6 @@
   "baseAttackSpeed": 0.5,
   "customAttributes": {
     "baseStaminaRegen": 100.0
-  }
+  },
+  "customBossbarAttributes": {}
 }

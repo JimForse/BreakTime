@@ -10,5 +10,10 @@
     "maxMana": 1000000,
     "cooldownReduction": 1000000,
     "castTimeReduction": 1000000
+  },
+  "customBossbarAttributes": {
+    "name": "",
+    "color": "",
+    "overlay": "PROGRESS"
   }
 }

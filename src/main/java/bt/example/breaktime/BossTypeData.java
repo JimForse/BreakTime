@@ -22,29 +22,44 @@ public class BossTypeData {
     public static class BossReloadListener extends SimpleJsonResourceReloadListener {
         public BossReloadListener() {
             super(GSON, "bosses");
+            BreakTimeMod.LOGGER.info("Инициализация BossReloadListener для data/breaktime/bosses/");
         }
 
         @Override
         protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager resourceManager, ProfilerFiller profiler) {
+            BreakTimeMod.LOGGER.info("Начало загрузки JSON боссов. Найдено файлов: {}", map.size());
             BOSS_ATTRIBUTES.clear();
             for (Map.Entry<ResourceLocation, JsonElement> entry : map.entrySet()) {
                 String bossId = entry.getKey().getPath();
+                BreakTimeMod.LOGGER.info("Обработка файла: {} (полный путь: {})", bossId, entry.getKey());
                 if (entry.getValue().isJsonObject()) {
                     BOSS_ATTRIBUTES.put(bossId, entry.getValue().getAsJsonObject());
-                    System.out.println("Loaded boss: " + bossId + " with attributes: " + entry.getValue());
+                    BreakTimeMod.LOGGER.info("Загружен босс: {} с атрибутами: {}", bossId, entry.getValue());
                 } else {
-                    System.err.println("Invalid JSON for boss: " + bossId);
+                    BreakTimeMod.LOGGER.warn("Неверный JSON для босса: {}", bossId);
                 }
+            }
+            if (BOSS_ATTRIBUTES.isEmpty()) {
+                BreakTimeMod.LOGGER.warn("Не найдено ни одного JSON для боссов!");
+            } else {
+                BreakTimeMod.LOGGER.info("Загружено {} боссов", BOSS_ATTRIBUTES.size());
             }
         }
     }
 
     @SubscribeEvent
     public static void onAddReloadListener(AddReloadListenerEvent event) {
+        BreakTimeMod.LOGGER.info("Регистрация BossReloadListener");
         event.addListener(new BossReloadListener());
     }
 
     public static JsonObject getBossAttributes(String bossId) {
-        return BOSS_ATTRIBUTES.get(bossId);
+        JsonObject attributes = BOSS_ATTRIBUTES.get(bossId);
+        if (attributes == null) {
+            BreakTimeMod.LOGGER.warn("Атрибуты для босса {} не найдены!", bossId);
+        } else {
+            BreakTimeMod.LOGGER.info("Возвращены атрибуты для босса {}: {}", bossId, attributes);
+        }
+        return attributes;
     }
 }

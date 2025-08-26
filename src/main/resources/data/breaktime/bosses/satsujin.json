@@ -7,5 +7,10 @@
   "customAttributes": {
     "staminar": 1000000,
     "baseStaminaRegen": 1000000
+  },
+  "customBossbarAttributes": {
+    "name": "",
+    "color": "",
+    "overlay": "PROGRESS"
   }
 }
