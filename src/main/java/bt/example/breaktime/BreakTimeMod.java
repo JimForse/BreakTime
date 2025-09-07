@@ -79,54 +79,6 @@ public class BreakTimeMod {
         Config.items.forEach((item) -> LOGGER.info("ITEM >> {}", item.toString()));
     }
 
-    private void onBossDefeated(ServerLevel level, TimerData timer) {
-        Entity boss = null;
-        for (Entity entity : level.getEntities().getAll()) {
-            if (entity.getTags().contains(timer.getBossType().getId()) && entity.getTags().contains("boss_active")) {
-                boss = entity;
-                break;
-            }
-        }
-        if (boss instanceof ServerPlayer bossPlayer) {
-            bossPlayer.removeTag("boss_active");
-            BossManager.removeBossBar(bossPlayer);
-
-            ServerPlayer killer = null;
-            DamageSource lastDamage = bossPlayer.getLastDamageSource();
-            if (lastDamage != null && lastDamage.getEntity() instanceof ServerPlayer damageSourcePlayer) {
-                killer = damageSourcePlayer;
-                BreakTimeMod.LOGGER.info("Boss killer found: {}", killer.getName().getString());
-            } else {
-                BreakTimeMod.LOGGER.warn("No killer found for boss {}! Last damage: {}", bossPlayer.getName().getString(), lastDamage != null ? lastDamage.getMsgId() : "null");
-            }
-
-            ItemStack drop = bossPlayer.getInventory().getItem(0).copy();
-            if (!drop.isEmpty()) {
-                if (killer != null) {
-                    killer.addItem(drop);
-                    killer.sendSystemMessage(Component.literal("Получен предмет от босса: " + drop.getHoverName().getString()));
-                    BreakTimeMod.LOGGER.info("Dropped {} to killer {}.", drop.getHoverName().getString(), killer.getName().getString());
-                } else {
-                    List<ServerPlayer> participants = level.getPlayers(p -> p.getTags().contains("participant"));
-                    if (!participants.isEmpty()) {
-                        ServerPlayer randomParticipant = participants.get(new Random().nextInt(participants.size()));
-                        randomParticipant.addItem(drop);
-                        randomParticipant.sendSystemMessage(Component.literal("Получен предмет от босса: " + drop.getHoverName().getString()));
-                        BreakTimeMod.LOGGER.info("Dropped {} to random participant {}.", drop.getHoverName().getString(), randomParticipant.getName().getString());
-                    }
-                }
-            } else {
-                BreakTimeMod.LOGGER.info("Boss slot 0 empty, no drop.");
-            }
-        }
-
-        for (ServerPlayer player : level.getPlayers(p -> p.getTags().contains("participant"))) {
-            player.sendSystemMessage(Component.literal("§aПобеда! Босс был повержен."));
-        }
-        level.getGameRules().getRule(GameRules.RULE_KEEPINVENTORY).set(false, level.getServer());
-        removeTimer(timer.getName());
-    }
-
     private void onParticipantsDefeated(ServerLevel level, TimerData timer, Entity boss) {
         level.getGameRules().getRule(GameRules.RULE_KEEPINVENTORY).set(false, level.getServer());
         if (boss instanceof ServerPlayer playerBoss) {
@@ -152,27 +104,6 @@ public class BreakTimeMod {
 
     private void clientSetup(final FMLClientSetupEvent event) {
         MinecraftForge.EVENT_BUS.register(new ClientSetup());
-    }
-
-    // Обработка смерти босса
-    @SubscribeEvent
-    public void onBossDeath(LivingDeathEvent event) {
-        Entity entity = event.getEntity();
-        DamageSource source = event.getSource();
-
-        for (TimerData timer : timers.values()) {
-            if (entity.getTags().contains(timer.getBossType().getId())) {
-                // Если его убил игрок
-                if (source.getEntity() instanceof ServerPlayer player) {
-                    ItemStack bossItem = player.getInventory().getItem(0); // Получаем предмет из первого слота инвентаря
-                    if (!bossItem.isEmpty()) {
-                        player.getInventory().add(bossItem);
-                        player.sendSystemMessage(Component.literal("§6Вы победили босса и получили его оружие!"));
-                    }
-                }
-                break;
-            }
-        }
     }
 
     // Обработчик тиков сервера
@@ -260,19 +191,6 @@ public class BreakTimeMod {
                     }
                 }
 
-                // Теперь, вне цикла, обновляем бар если boss найден и это игрок
-                if (boss != null && boss instanceof ServerPlayer bossPlayer) {
-                    BossManager.updateBossBar(bossPlayer);
-                    BossManager.applyBossAttributes(bossPlayer, timer.getBossType(), participants.size(), true);
-                    BossManager.updateBossBar(bossPlayer);
-                }
-
-                if (boss == null) {
-                    onBossDefeated(timerLevel, timer);
-                    iterator.remove();
-                    continue;
-                }
-
                 boolean allParticipantsDefeated = participants.stream()
                         .allMatch(p -> p.isDeadOrDying() || deathLocations.containsKey(p.getGameProfile().getName()));
 
@@ -284,9 +202,7 @@ public class BreakTimeMod {
         }
 
         // Наносим урон нарушителям
-        for (ServerPlayer player : level.getPlayers(p -> true)) {
-            if (player.getTags().contains("admin") || player.getTags().contains("participant")) continue;
-            if (player.getTags().contains("boss_active")) continue;
+        for (ServerPlayer player : level.getPlayers(p -> !p.getTags().contains("admin") && !p.getTags().contains("participant"))) {
             ServerPlayer bossPlayer = level.getPlayers(p -> p.getTags().contains("boss_active") &&
                     p.getTags().stream().anyMatch(tag -> {
                         for (BossType bossType : BossType.values()) {
@@ -303,7 +219,20 @@ public class BreakTimeMod {
                     if (currentTime - lastDamageTick >= 30) {
                         player.hurt(DamageSource.GENERIC, 10.0F);
                         player.sendSystemMessage(Component.literal("Ты не участник битвы! Уходи или умрёшь!"));
-                        damageTicks.put(player, currentTime);
+                        damageTicks.put(player, 0L);
+                    }
+                }
+
+                // Проверка на отсутствие участников в ауре
+                if (bossPlayer.isAlive() && !timers.isEmpty()) { // Если босс жив и бой продолжается
+                    AABB aura = new AABB(bossPlayer.blockPosition()).inflate(50.0);
+                    List<ServerPlayer> participantsInAura = level.getEntitiesOfClass(ServerPlayer.class, aura, p -> p.getTags().contains("participant") && p.isAlive());
+                    if (participantsInAura.isEmpty()) {
+                        // Останавливаем бой
+                        timers.clear(); // Удаляем таймеры
+                        bossPlayer.setGameMode(GameType.SPECTATOR);
+                        level.getPlayers(p -> true).forEach(p -> p.sendSystemMessage(Component.literal("Проигрыш").withStyle(style -> style.withColor(0xFF0000)))); // Красный message
+                        level.getServer().getCommands().performPrefixedCommand(level.getServer().createCommandSourceStack(), "/title @a title {\"text\":\"Проигрыш\",\"color\":\"red\"}");
                     }
                 }
             } else {
@@ -350,6 +279,7 @@ public class BreakTimeMod {
     @SubscribeEvent
     public void onPlayerDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer deadPlayer && deadPlayer.getTags().contains("participant")) {
+            deadPlayer.removeTag("participant"); // Убираем тег
             deathLocations.put(deadPlayer.getGameProfile().getName(), deadPlayer.blockPosition());
             PacketHandler.sendToPlayer(new DeathCooldownPacket(7), deadPlayer);
             BreakTimeMod.LOGGER.info("Sent cooldown packet to participant {} on death.", deadPlayer.getName().getString());
@@ -364,6 +294,12 @@ public class BreakTimeMod {
             deadPlayer.getServer().getPlayerList().getPlayers().forEach(p ->
                     p.sendSystemMessage(deathMessage)
             );
+
+            // Показываем таймер над инвентарём (actionbar) фиолетовым на 10 секунд
+            deadPlayer.getServer().getCommands().performPrefixedCommand(deadPlayer.getServer().createCommandSourceStack(), "/title " + deadPlayer.getName().getString() + " actionbar {\"text\":\"Возрождение через 10 секунд\",\"color\":\"light_purple\"}");
+
+            // Schedule выдачи тега обратно через 10 секунд (200 тиков)
+            deadPlayer.getServer().getCommands().performPrefixedCommand(deadPlayer.getServer().createCommandSourceStack(), "/schedule function breaktime:restore_participant 200t " + deadPlayer.getName().getString());
         }
     }
 }
